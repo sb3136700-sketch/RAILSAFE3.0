@@ -53,6 +53,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   const navLinks = [
     { label: t.trackTrain, route: '/trains', icon: Train },
+    { label: 'Journey Tools', route: '/travel-tools', icon: Train },
     { label: t.reportIncident, route: '/report-incident', icon: AlertTriangle },
     { label: 'My Incidents', route: '/incident-status', icon: FileText },
     { label: t.emergencyContacts, route: '/contacts', icon: PhoneCall },
