@@ -67,13 +67,11 @@ export const AiAssistantPage: React.FC<AiAssistantPageProps> = ({
     setLoading(true);
 
     try {
-      const res = await fetch('/api/rail-assistant', {
+      const res = await fetch('/api/ai/assistant', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          question: q,
-          currentTrain: `${currentTrain.trainNumber} ${currentTrain.trainName}`,
-          currentStation: `${currentStation.stationName} (${currentStation.stationCode})`,
+          prompt: 'Passenger question: ' + q + '\nCurrent train: ' + currentTrain.trainNumber + ' ' + currentTrain.trainName + '\nCurrent station: ' + currentStation.stationName + ' (' + currentStation.stationCode + ')',
         }),
       });
 
@@ -81,7 +79,7 @@ export const AiAssistantPage: React.FC<AiAssistantPageProps> = ({
       const aiMsg: Message = {
         id: (Date.now() + 1).toString(),
         sender: 'assistant',
-        text: data.answer || 'I am ready to help you with your journey.',
+        text: data.reply || data.answer || 'I am ready to help you with your journey.',
         source: modelChoice === 'huggingface' ? 'HuggingFace IndianRail Model' : 'Gemini 2.5 Flash',
         timestamp: 'Now',
       };
