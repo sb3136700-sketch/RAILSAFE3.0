@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import './index.css';
 import { 
   Train, 
   Navigation, 
@@ -56,81 +57,14 @@ import { TicketBookingModal } from './components/TicketBookingModal';
 import { FoodOrderModal } from './components/FoodOrderModal';
 import { RealtimeTranslateModal } from './components/RealtimeTranslateModal';
 
-function getTabFromPath(path: string): string {
-  const clean = path.replace(/\/$/, '') || '/';
-  if (clean === '/pnr-status') return 'pnr-status';
-  if (clean === '/fare-calculator') return 'fare-calculator';
-  if (clean === '/coach-position') return 'coach-position';
-  if (clean === '/station-info') return 'station-info';
-  if (clean === '/checklist') return 'checklist';
-  if (clean === '/nearby') return 'nearby';
-  if (clean === '/route') return 'route';
-  if (clean === '/planner') return 'planner';
-  if (clean === '/coach') return 'coach-position';
-  if (clean === '/pnr') return 'pnr-status';
-  if (clean === '/ai') return 'ai';
-  if (clean === '/utilities') return 'utilities';
-  if (clean === '/food') return 'food';
-  return 'tracking';
+export interface Train2AppProps {
+  onTriggerRailSafeSos?: () => void;
 }
 
-function getPathFromTab(tab: string): string {
-  switch (tab) {
-    case 'pnr-status':
-    case 'pnr':
-      return '/pnr-status';
-    case 'fare-calculator':
-      return '/fare-calculator';
-    case 'coach-position':
-    case 'coach':
-      return '/coach-position';
-    case 'station-info':
-      return '/station-info';
-    case 'checklist':
-      return '/checklist';
-    case 'route':
-      return '/route';
-    case 'planner':
-      return '/planner';
-    case 'nearby':
-      return '/nearby';
-    case 'ai':
-      return '/ai';
-    case 'utilities':
-      return '/utilities';
-    case 'food':
-      return '/food';
-    case 'tracking':
-    default:
-      return '/';
-  }
-}
+export default function App({ onTriggerRailSafeSos }: Train2AppProps = {}) {
+  const [activeTab, setActiveTabState] = useState<string>('tracking');
+  const setActiveTab = (tab: string) => setActiveTabState(tab);
 
-export default function App() {
-  const [activeTab, setActiveTabState] = useState<string>(() => {
-    if (typeof window !== 'undefined') {
-      return getTabFromPath(window.location.pathname);
-    }
-    return 'tracking';
-  });
-
-  const setActiveTab = (tab: string) => {
-    setActiveTabState(tab);
-    if (typeof window !== 'undefined') {
-      const targetPath = getPathFromTab(tab);
-      if (window.location.pathname !== targetPath) {
-        window.history.pushState({ tab }, '', targetPath);
-      }
-    }
-  };
-
-  React.useEffect(() => {
-    const handlePopState = () => {
-      setActiveTabState(getTabFromPath(window.location.pathname));
-    };
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
   const [currentTrain, setCurrentTrain] = useState<TrainDetails>(ALL_TRAINS[0]);
   const [currentLang, setCurrentLang] = useState<SupportedLanguage>('en');
   const [userProfile, setUserProfile] = useState<UserProfile>(getUserProfile());
@@ -204,7 +138,7 @@ export default function App() {
         alarm={alarm}
         onOpenAlarmModal={() => setIsAlarmModalOpen(true)}
         onOpenAiAssistant={() => setActiveTab('ai')}
-        onOpenSosModal={() => setIsSosModalOpen(true)}
+        onOpenSosModal={() => (onTriggerRailSafeSos ? onTriggerRailSafeSos() : setIsSosModalOpen(true))}
         onOpenAuthModal={() => setIsAuthModalOpen(true)}
         onOpenComplaintModal={() => setIsComplaintModalOpen(true)}
         onOpenFoodModal={() => setIsFoodModalOpen(true)}
@@ -457,14 +391,18 @@ export default function App() {
         currentStopIndex={1}
       />
 
-      {/* 2. SOS Emergency Modal */}
-      <SosModal
-        isOpen={isSosModalOpen}
-        onClose={() => setIsSosModalOpen(false)}
-        currentTrain={currentTrain}
-        currentStation={currentApproachingStop}
-        userProfile={userProfile}
-      />
+      {!onTriggerRailSafeSos && (
+        <>
+                {/* 2. SOS Emergency Modal */}
+                <SosModal
+                  isOpen={isSosModalOpen}
+                  onClose={() => setIsSosModalOpen(false)}
+                  currentTrain={currentTrain}
+                  currentStation={currentApproachingStop}
+                  userProfile={userProfile}
+                />
+        </>
+      )}
 
       {/* 3. User Account & Profile Modal */}
       <AuthModal
