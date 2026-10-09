@@ -90,3 +90,22 @@ npm run build
 3. Publish directory: `dist`
 4. Functions directory: `netlify/functions`
 5. Configure environment variables in Netlify site settings.
+
+
+## Train 2 Journey Tools integration
+
+RailSafe includes the Train 2 journey-assistance module under `src/train2/` and exposes it through the **Journey Tools** navigation item at `/travel-tools`. The module is kept separate from RailSafe's safety pages so the original safety workflows, authentication shell, incident reporting, admin pages, and live SOS tracking route remain in place.
+
+Included travel tools include train journey tracking, journey planning, route timeline, interactive coach/seat map, PNR utilities, fare calculator, coach position, station information, travel checklist, nearby services, AI travel assistant, weather card, luggage reminders, destination alarms, translation, travel utilities, ticket links, food links, and complaint links.
+
+### Live train status
+
+The module requests `/api/trains/:trainNumber/live`. The Express server and Netlify API function proxy the request to RailRadar server-side. Configure `RAILRADAR_API_KEY` in the server/deployment environment. Set `RAILRADAR_BASE_URL` to `https://api.railradar.in/v1`; the code normalises both the host-only and `/v1` forms. If the provider has not returned live status or coordinates, the UI must present stale, unavailable, or estimated data honestly and must not invent live GPS.
+
+### SOS action and SMS provider
+
+The journey module's SOS action delegates to RailSafe's SOS workflow. SMS gateway credentials remain optional; without a configured provider, use the existing manual SMS fallback and do not claim that a message was sent automatically. Add MSG91 credentials only after creating the account and configuring the applicable Indian sender/template/DLT requirements.
+
+### Integration status
+
+The merge is prepared on a separate branch for review. The GitHub connector can create and inspect the branch/PR, but it cannot run the application's Vite build or browser tests. Run the build/preview before merging into `main`.
