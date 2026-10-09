@@ -1,4 +1,4 @@
-@import "tailwindcss";
+/* Tailwind is loaded by the RailSafe root stylesheet. */
 
 @layer base {
   body {
