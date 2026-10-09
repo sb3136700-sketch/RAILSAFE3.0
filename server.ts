@@ -754,8 +754,8 @@ app.get('/api/trains/track/:trainNumber', async (req, res) => {
   const railradarApiKey = process.env.RAILRADAR_API_KEY;
   if (railradarApiKey) {
     try {
-      const rawBaseUrl = (process.env.RAILRADAR_BASE_URL || 'https://api.railradar.in/v1').replace(/\\/+$/, '');
-      const baseUrl = /\\/v1$/i.test(rawBaseUrl) ? rawBaseUrl : rawBaseUrl + '/v1';
+      const rawBaseUrl = (process.env.RAILRADAR_BASE_URL || 'https://api.railradar.in/v1').replace(/\/+$/, '');
+      const baseUrl = /\/v1$/i.test(rawBaseUrl) ? rawBaseUrl : rawBaseUrl + '/v1';
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 6000);
 
