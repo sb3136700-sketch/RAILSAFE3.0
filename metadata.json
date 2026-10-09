@@ -1,0 +1,6 @@
+{
+  "name": "RailSafe 2.0 — Railway Passenger Safety & Journey Assistance Platform",
+  "description": "AI-powered railway passenger safety, live journey tracking, real-time SOS with live location sharing, and cybersecurity-hardened operations hub.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
