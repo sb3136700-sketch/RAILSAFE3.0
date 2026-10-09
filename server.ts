@@ -633,6 +633,100 @@ app.get('/api/health', (req, res) => {
 });
 
 // 2. Train Search & Tracking
+
+// Train 2 live-tracking route: proxy the provider and never fabricate current GPS.
+type Train2RailRadarRecord = Record<string, any>;
+const train2LiveCache = new Map<string, { fetchedAtMs: number; payload: Train2RailRadarRecord }>();
+const TRAIN2_LIVE_CACHE_MS = 20_000;
+const TRAIN2_LIVE_TIMEOUT_MS = 8_000;
+
+app.get('/api/trains/:trainNumber/live', async (req, res) => {
+  const trainNumber = String(req.params.trainNumber || '').trim();
+  if (!/^\d{5}$/.test(trainNumber)) {
+    return res.status(400).json({ ok: false, status: 'invalid', error: 'Train number must contain exactly 5 digits.' });
+  }
+
+  const providerKey = process.env.RAILRADAR_API_KEY;
+  const rawBase = (process.env.RAILRADAR_BASE_URL || 'https://api.railradar.in/v1').replace(/\/+$/, '');
+  const baseUrl = /\/v1$/i.test(rawBase) ? rawBase : rawBase + '/v1';
+  if (!providerKey) {
+    return res.status(503).json({
+      ok: false,
+      status: 'unavailable',
+      provider: null,
+      message: 'Live tracking is not configured. Set RAILRADAR_API_KEY in the server environment. No simulated location is shown as live.'
+    });
+  }
+
+  const queryDate = String(req.query.date || '');
+  const cacheKey = trainNumber + ':' + queryDate;
+  const cached = train2LiveCache.get(cacheKey);
+  if (cached && Date.now() - cached.fetchedAtMs < TRAIN2_LIVE_CACHE_MS && req.query.refresh !== 'true') {
+    res.setHeader('Cache-Control', 'no-store');
+    return res.json({ ...cached.payload, cacheAgeSeconds: Math.floor((Date.now() - cached.fetchedAtMs) / 1000) });
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), TRAIN2_LIVE_TIMEOUT_MS);
+  try {
+    const url = new URL(baseUrl + '/trains/' + encodeURIComponent(trainNumber) + '/live');
+    if (queryDate && /^\d{4}-\d{2}-\d{2}$/.test(queryDate)) url.searchParams.set('date', queryDate);
+    url.searchParams.set('authoritative', 'true');
+    url.searchParams.set('includeCoordinates', 'true');
+    url.searchParams.set('geometry', 'true');
+    url.searchParams.set('format', 'geojson');
+
+    const upstream = await fetch(url, {
+      headers: { Authorization: 'Bearer ' + providerKey, Accept: 'application/json' },
+      signal: controller.signal
+    });
+    const body = await upstream.json().catch(() => ({} as Train2RailRadarRecord)) as Train2RailRadarRecord;
+    if (!upstream.ok || body.success === false) {
+      const status = upstream.status === 401 || upstream.status === 403 ? 'provider_auth_error' :
+        upstream.status === 404 ? 'not_found' :
+        upstream.status === 429 ? 'rate_limited' : 'provider_error';
+      return res.status(upstream.status === 404 ? 404 : upstream.status === 429 ? 429 : 502).json({
+        ok: false, status, provider: 'RailRadar',
+        message: body?.error?.message || 'Live status provider returned HTTP ' + upstream.status + '.'
+      });
+    }
+
+    const data = body.data || body;
+    const payload: Train2RailRadarRecord = {
+      ok: true,
+      status: data.isLive === true ? 'live' : 'stale',
+      provider: 'RailRadar',
+      fetchedAt: new Date().toISOString(),
+      sourceUpdatedAt: data.lastUpdatedAt || null,
+      providerResponseAt: body.meta?.timestamp || null,
+      trainNumber: data.trainNumber || trainNumber,
+      trainName: data.trainName || data.train?.name || null,
+      runDate: data.startDate || null,
+      runningStatus: data.status || null,
+      delayMinutes: Number.isFinite(data.delayMinutes) ? data.delayMinutes : null,
+      currentLocation: data.currentLocation || null,
+      previousHalt: data.previousHalt || null,
+      nextHalt: data.nextHalt || null,
+      route: Array.isArray(data.route) ? data.route : [],
+      geometry: data.geometry || data.geojson || null,
+      isLive: data.isLive === true
+    };
+    train2LiveCache.set(cacheKey, { fetchedAtMs: Date.now(), payload });
+    res.setHeader('Cache-Control', 'no-store');
+    return res.json(payload);
+  } catch (error) {
+    const timedOut = error instanceof Error && error.name === 'AbortError';
+    return res.status(502).json({
+      ok: false,
+      status: timedOut ? 'timeout' : 'provider_unavailable',
+      provider: 'RailRadar',
+      message: timedOut ? 'Live status request timed out. Try again shortly.' : 'Unable to retrieve live train status right now.'
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
+});
+
 app.get('/api/trains/search', (req, res) => {
   const query = ((req.query.query as string) || '').toLowerCase().trim();
   if (!query) {
@@ -660,7 +754,8 @@ app.get('/api/trains/track/:trainNumber', async (req, res) => {
   const railradarApiKey = process.env.RAILRADAR_API_KEY;
   if (railradarApiKey) {
     try {
-      const baseUrl = process.env.RAILRADAR_BASE_URL || 'https://api.railradar.in/v1';
+      const rawBaseUrl = (process.env.RAILRADAR_BASE_URL || 'https://api.railradar.in/v1').replace(/\\/+$/, '');
+      const baseUrl = /\\/v1$/i.test(rawBaseUrl) ? rawBaseUrl : rawBaseUrl + '/v1';
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 6000);
 
